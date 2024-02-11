@@ -1,0 +1,109 @@
+name: CompareScreenshot
+# Modified from https://github.com/takahirom/roborazzi-compare-on-github-comment-sample
+
+on:
+  workflow_run:
+    workflows:
+      - Cypress
+    types:
+      - completed
+
+permissions: {}
+
+jobs:
+  compare-screenshot-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: read # for clone
+      actions: write # for upload-artifact
+
+    env:
+      IS_PULL_REQUEST: ${{ github.event.workflow_run.event == 'pull_request' && 'true' || 'false' }}
+      SOURCE_BRANCH: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.event.pull_request.base.ref || github.event.repository.default_branch }}
+      TARGET_BRANCH: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.event.pull_request.head.ref || github.event.repository.default_branch }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - id: screenshot-branch
+        run: |
+          if git branch cypress-screenshots; then
+            git checkout cypress-screenshots
+          else
+            # create orphan branch if not exists
+            git switch --orphan cypress-screenshots
+          fi
+      - id: clear-old-screenshots
+        run: |
+          rm -rf $SOURCE_BRANCH/
+      - uses: dawidd6/action-download-artifact@v2
+        continue-on-error: true
+        with:
+          name: cypress-screenshots
+          workflow: cypress.yml
+          path: ${{ env.SOURCE_BRANCH }}
+      - name: compare screenshots
+        id: compare-screenshots
+        if: ${{ env.IS_PULL_REQUEST == 'true' }}
+        run: |
+          npm install odiff-bin
+          for file in $SOURCE_BRANCH/cypress/screenshots/*.png; do
+            if [ -f $TARGET_BRANCH/cypress/screenshots/$(basename $file) ]; then
+              odiff \
+                $file \
+                $TARGET_BRANCH/cypress/screenshots/$(basename $file) \
+                ${SOURCE_BRANCH}_diff/$file.png
+            fi
+          done
+      - id: push-screenshot-diff
+        shell: bash
+        run: |
+          git add .
+          git config --global user.name ScreenshotBot
+          git config --global user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m "Add ${SOURCE_BRANCH}:${TARGET_BRANCH} screenshot diffs"
+          #git push origin HEAD:cypress-screenshots -f
+      - id: generate-diff-reports
+        name: Generate diff reports
+        if: ${{ env.IS_PULL_REQUEST == 'true' }}
+        shell: bash
+        run: |
+          find . -ls
+          echo "pull_request_number=${{ github.event.workflow_run.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          files=$(find . -type f -name "$SOURCE_BRANCH/cypress/screenshots/*.png")
+          delimiter="$(openssl rand -hex 8)"
+          {
+            echo "reports<<${delimiter}"
+
+            # Create markdown table header
+            echo "Snapshot diff report vs base branch: $SOURCE_BRANCH"
+            echo "| File name | Image |"
+            echo "|-------|-------|"
+          } >> "$GITHUB_OUTPUT"
+
+          # Iterate over the files and create table rows
+          for file in $files; do
+            # Get the file name and insert newlines every 20 characters
+            fileName=$(basename "$file" | sed -r 's/(.{20})/\1<br>/g')
+            echo "| [$fileName](https://github.com/${{ github.repository }}/blob/cypress-screenshots/$file) | ![](https://github.com/${{ github.repository }}/blob/cypress-screenshots/$file?raw=true) |" >> "$GITHUB_OUTPUT"
+          done
+          echo "${delimiter}" >> "$GITHUB_OUTPUT"
+      - name: Find Comment
+        uses: peter-evans/find-comment@v3
+        id: fc
+        if: steps.generate-diff-reports.outputs.reports != ''
+        with:
+          issue-number: ${{ github.event.workflow_run.event.pull_request.number }}
+          comment-author: "github-actions[bot]"
+          body-includes: Snapshot diff report
+
+      - name: Add or update comment on PR
+        uses: peter-evans/create-or-update-comment@v4
+        if: steps.generate-diff-reports.outputs.reports != ''
+        with:
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          issue-number: ${{ github.event.workflow_run.event.pull_request.number }}
+          body: ${{ steps.generate-diff-reports.outputs.reports }}
+          edit-mode: replace
