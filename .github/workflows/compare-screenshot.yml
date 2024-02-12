@@ -104,7 +104,7 @@ jobs:
             echo -n "| [$fileName](<https://github.com/${{ github.repository }}/blob/cypress-screenshots/$file>) " >> "$GITHUB_OUTPUT"
             echo -n "| ![](<https://github.com/${{ github.repository }}/blob/cypress-screenshots/${file/$SOURCE_BRANCH/$TARGET_BRANCH/}?raw=true>) " >> "$GITHUB_OUTPUT"
             echo -n "| ![](<https://github.com/${{ github.repository }}/blob/cypress-screenshots/${file}?raw=true>) " >> "$GITHUB_OUTPUT"
-            echo -n "| ![](<https://github.com/${{ github.repository }}/blob/cypress-screenshots/${file/$SOURCE_BRANCH/${SOURCE_BRANCH}_diff/}?raw=true>) |" >> "$GITHUB_OUTPUT"
+            echo "| ![](<https://github.com/${{ github.repository }}/blob/cypress-screenshots/${file/$SOURCE_BRANCH/${SOURCE_BRANCH}_diff/}?raw=true>) |" >> "$GITHUB_OUTPUT"
           done
           unset IFS
           echo "${delimiter}" >> "$GITHUB_OUTPUT"
