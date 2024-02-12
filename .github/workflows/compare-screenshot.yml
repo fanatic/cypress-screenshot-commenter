@@ -62,6 +62,7 @@ jobs:
           IFS=$'\n'
           for file in $files; do
             if [ -f ${file/$SOURCE_BRANCH/$TARGET_BRANCH} ]; then
+              mkdir -p $(dirname ${file/$SOURCE_BRANCH/${SOURCE_BRANCH}_diff})
               odiff \
                 $file \
                 ${file/$SOURCE_BRANCH/$TARGET_BRANCH} \
