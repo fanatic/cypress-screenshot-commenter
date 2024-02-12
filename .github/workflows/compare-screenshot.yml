@@ -16,8 +16,9 @@ jobs:
     timeout-minutes: 20
 
     permissions:
-      contents: read # for clone
-      actions: write # for upload-artifact
+      contents: write # for pushing to cypress-screenshots branch
+      actions: write # for upload-artifact, download-artifact
+      pull-requests: write # for creating a comment on pull requests
 
     env:
       IS_PULL_REQUEST: ${{ github.event.workflow_run.event == 'pull_request' && 'true' || 'false' }}
