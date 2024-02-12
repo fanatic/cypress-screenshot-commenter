@@ -45,12 +45,13 @@ jobs:
       - id: clear-old-screenshots
         run: |
           rm -rf $SOURCE_BRANCH/
+          rm -rf ${SOURCE_BRANCH}_diff/
       - uses: dawidd6/action-download-artifact@v2
         continue-on-error: true
         with:
           name: cypress-screenshots
           workflow: cypress.yml
-          path: ${{ steps.get-pull-request-number.outputs.pull_request_number }}
+          path: ${{ env.SOURCE_BRANCH }}
       - name: compare screenshots
         id: compare-screenshots
         if: ${{ env.IS_PULL_REQUEST == 'true' }}
