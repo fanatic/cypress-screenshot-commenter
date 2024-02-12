@@ -59,6 +59,7 @@ jobs:
           set -x
           npm install -g odiff-bin
           files=$(find $SOURCE_BRANCH -type f -name "*.png")
+          IFS=$'\n'
           for file in $files; do
             if [ -f ${file/$SOURCE_BRANCH/$TARGET_BRANCH} ]; then
               odiff \
@@ -67,6 +68,7 @@ jobs:
                 ${file/$SOURCE_BRANCH/${SOURCE_BRANCH}_diff}
             fi
           done
+          unset IFS
       - id: push-screenshot-diff
         shell: bash
         run: |
@@ -82,7 +84,8 @@ jobs:
         run: |
           set -x
           find . -ls
-          files=$(find $SOURCE_BRANCH -type f -name "*.png" | grep -E "^[a-zA-Z0-9_./-]+$")
+          files=$(find $SOURCE_BRANCH -type f -name "*.png")
+          echo $files
           delimiter="$(openssl rand -hex 8)"
           {
             echo "reports<<${delimiter}"
@@ -94,11 +97,13 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
           # Iterate over the files and create table rows
+          IFS=$'\n'
           for file in $files; do
             # Get the file name and insert newlines every 20 characters
             fileName=$(basename "$file" | sed -r 's/(.{20})/\1<br>/g')
             echo "| [$fileName](https://github.com/${{ github.repository }}/blob/cypress-screenshots/$file) | ![](https://github.com/${{ github.repository }}/blob/cypress-screenshots/$file?raw=true) |" >> "$GITHUB_OUTPUT"
           done
+          unset IFS
           echo "${delimiter}" >> "$GITHUB_OUTPUT"
       - name: Find Comment
         uses: peter-evans/find-comment@v3
