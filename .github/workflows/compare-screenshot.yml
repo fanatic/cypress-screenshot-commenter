@@ -49,12 +49,13 @@ jobs:
         if: ${{ env.IS_PULL_REQUEST == 'true' }}
         run: |
           npm install odiff-bin
-          for file in $SOURCE_BRANCH/cypress/screenshots/*.png; do
-            if [ -f $TARGET_BRANCH/cypress/screenshots/$(basename $file) ]; then
+          files=$(find $SOURCE_BRANCH -type f -name "*.png")
+          for file in $files; do
+            if [ -f ${file/$SOURCE_BRANCH/$TARGET_BRANCH} ]; then
               odiff \
                 $file \
-                $TARGET_BRANCH/cypress/screenshots/$(basename $file) \
-                ${SOURCE_BRANCH}_diff/$file.png
+                ${file/$SOURCE_BRANCH/$TARGET_BRANCH} \
+                ${file/$SOURCE_BRANCH/${TARGET_BRANCH}_diff}
             fi
           done
       - id: push-screenshot-diff
@@ -64,7 +65,7 @@ jobs:
           git config --global user.name ScreenshotBot
           git config --global user.email 41898282+github-actions[bot]@users.noreply.github.com
           git commit -m "Add ${SOURCE_BRANCH}:${TARGET_BRANCH} screenshot diffs"
-          #git push origin HEAD:cypress-screenshots -f
+          git push origin HEAD:cypress-screenshots -f
       - id: generate-diff-reports
         name: Generate diff reports
         if: ${{ env.IS_PULL_REQUEST == 'true' }}
