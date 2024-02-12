@@ -10,4 +10,4 @@ and comments on the PR with the differences.
 # Local testing
 
 1. `act push  --artifact-server-path artifacts`
-2. `act -j compare-screenshot-test   --artifact-server-path artifacts -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:full-latest`
+2. `act -j compare-screenshot-test    --artifact-server-path artifacts -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:full-latest`
