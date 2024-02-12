@@ -35,9 +35,9 @@ jobs:
           echo "pull_request_number=$(cat NR)" >> "$GITHUB_OUTPUT"
       - name: Checkout
         uses: actions/checkout@v4
-      - id: screenshot-branch
-        run: |
-          git switch cypress-screenshots || git switch --orphan cypress-screenshots
+        with:
+          # Pre-create and push orphan `git switch --orphan cypress-screenshots`
+          ref: cypress-screenshots
       - id: clear-old-screenshots
         env:
           SOURCE_BRANCH: ${{ steps.get-pull-request-number.outputs.pull_request_number }}
