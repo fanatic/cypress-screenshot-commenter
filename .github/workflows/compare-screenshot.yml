@@ -27,11 +27,13 @@ jobs:
 
     steps:
       - uses: dawidd6/action-download-artifact@v2
+        if: ${{ env.IS_PULL_REQUEST == 'true' }}
         with:
           name: pr
           run_id: ${{ github.event.workflow_run.id }}
       - id: get-pull-request-number
         name: Get pull request number
+        if: ${{ env.IS_PULL_REQUEST == 'true' }}
         shell: bash
         run: |
           echo "pull_request_number=$(cat NR)" >> "$GITHUB_OUTPUT"
