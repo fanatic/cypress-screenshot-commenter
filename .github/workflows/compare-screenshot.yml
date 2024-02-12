@@ -22,16 +22,25 @@ jobs:
 
     env:
       IS_PULL_REQUEST: ${{ github.event.workflow_run.event == 'pull_request' && 'true' || 'false' }}
-      SOURCE_BRANCH: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.event.pull_requests[0].base.ref || github.event.repository.default_branch }}
-      TARGET_BRANCH: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.event.pull_requests[0].head.ref || github.event.repository.default_branch }}
 
     steps:
+      - uses: dawidd6/action-download-artifact@v2
+        with:
+          name: pr
+          run_id: ${{ github.event.workflow_run.id }}
+      - id: get-pull-request-number
+        name: Get pull request number
+        shell: bash
+        run: |
+          echo "pull_request_number=$(cat NR)" >> "$GITHUB_OUTPUT"
       - name: Checkout
         uses: actions/checkout@v4
       - id: screenshot-branch
         run: |
           git switch cypress-screenshots || git switch --orphan cypress-screenshots
       - id: clear-old-screenshots
+        env:
+          SOURCE_BRANCH: ${{ steps.get-pull-request-number.outputs.pull_request_number }}
         run: |
           rm -rf $SOURCE_BRANCH/
       - uses: dawidd6/action-download-artifact@v2
@@ -39,12 +48,15 @@ jobs:
         with:
           name: cypress-screenshots
           workflow: cypress.yml
-          path: ${{ env.SOURCE_BRANCH }}
+          path: ${{ steps.get-pull-request-number.outputs.pull_request_number }}
       - name: compare screenshots
         id: compare-screenshots
         if: ${{ env.IS_PULL_REQUEST == 'true' }}
+        env:
+          SOURCE_BRANCH: ${{ steps.get-pull-request-number.outputs.pull_request_number }}
+          TARGET_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
-          npx run odiff-bin
+          npm install -g odiff-bin
           files=$(find $SOURCE_BRANCH -type f -name "*.png")
           for file in $files; do
             if [ -f ${file/$SOURCE_BRANCH/$TARGET_BRANCH} ]; then
@@ -55,6 +67,9 @@ jobs:
             fi
           done
       - id: push-screenshot-diff
+        env:
+          SOURCE_BRANCH: ${{ steps.get-pull-request-number.outputs.pull_request_number }}
+          TARGET_BRANCH: ${{ github.event.workflow_run.head_branch }}
         shell: bash
         run: |
           git add .
@@ -65,11 +80,12 @@ jobs:
       - id: generate-diff-reports
         name: Generate diff reports
         if: ${{ env.IS_PULL_REQUEST == 'true' }}
+        env:
+          SOURCE_BRANCH: ${{ steps.get-pull-request-number.outputs.pull_request_number }}
         shell: bash
         run: |
           set -x
           find . -ls
-          echo "pull_request_number=${{ github.event.workflow_run.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
           files=$(find $SOURCE_BRANCH -type f -name "*.png")
           delimiter="$(openssl rand -hex 8)"
           {
@@ -93,7 +109,7 @@ jobs:
         id: fc
         if: steps.generate-diff-reports.outputs.reports != ''
         with:
-          issue-number: ${{ github.event.workflow_run.event.pull_request.number }}
+          issue-number: ${{ steps.get-pull-request-number.outputs.pull_request_number }}
           comment-author: "github-actions[bot]"
           body-includes: Snapshot diff report
 
@@ -102,6 +118,6 @@ jobs:
         if: steps.generate-diff-reports.outputs.reports != ''
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
-          issue-number: ${{ github.event.workflow_run.event.pull_request.number }}
+          issue-number: ${{ steps.get-pull-request-number.outputs.pull_request_number }}
           body: ${{ steps.generate-diff-reports.outputs.reports }}
           edit-mode: replace
