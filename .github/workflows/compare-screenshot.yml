@@ -30,12 +30,7 @@ jobs:
         uses: actions/checkout@v4
       - id: screenshot-branch
         run: |
-          if git show-ref --verify --quiet refs/heads/cypress-screenshots; then
-            git checkout cypress-screenshots
-          else
-            # create orphan branch if not exists
-            git switch --orphan cypress-screenshots
-          fi
+          git switch cypress-screenshots || git switch --orphan cypress-screenshots
       - id: clear-old-screenshots
         run: |
           rm -rf $SOURCE_BRANCH/
